@@ -1,2 +1,101 @@
-# PSIB_TPI_GRUPO_13
-Repositorio para el trabajo practico de imágenes
+# PSIB 2026Q2 – TPI – Grupo 13
+
+**Caracterización y segmentación de tumores de mama en ecografía (dataset BUSI)**
+
+Lucía Burman · Lucía Fernandez San Juan · Agustina María Gallo
+
+El trabajo reconstruye las regiones tapadas por marcas del ecógrafo, estudia el ruido speckle de las ecografías mamarias, compara el filtrado en el dominio espacial y en el frecuencial según su efecto sobre la textura, construye mapas de características para decidir cómo segmentar la lesión y, con la lesión segmentada, analiza qué descriptores de forma, intensidad y textura diferencian lesiones benignas de malignas.
+
+## Estructura
+
+```
+config.yaml            # DATA_DIR y OUTPUT_DIR: rutas al dataset y a los resultados
+requirements.txt       # dependencias
+scripts/check_env.py   # verifica dependencias y que el dataset esté en DATA_DIR
+src/busi/
+    config.py          # lee config.yaml
+    datos.py           # carga de imágenes y máscaras de BUSI
+    artefactos.py      # Parte 1: detección de marcas del ecógrafo + inpainting
+    ruido.py           # Parte 2: caracterización del speckle
+    dominios.py        # Parte 3: filtrado espacial vs. frecuencial y efecto en la textura
+    mapas.py           # Parte 4: mapas de características (GLCM local, varianza, gradiente)
+    segmentacion.py    # Parte 5: region growing, k-means, Chan-Vese, Dice/IoU
+    descriptores.py    # Parte 6: descriptores BI-RADS + estadística benigno/maligno
+notebooks/             # un notebook por parte (00 = exploración del dataset)
+data/raw/              # dataset (NO se sube a GitHub)
+outputs/               # figuras y tablas generadas (no se sube)
+docs/                  # anteproyecto y material de la cátedra
+```
+
+## Puesta en marcha
+
+Requiere Python 3.10 o superior.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python scripts/check_env.py
+```
+
+Para Jupyter / VS Code, elegir el kernel `.venv` (o registrarlo con
+`python -m ipykernel install --user --name psib-tpi-g13 --display-name "PSIB TPI Grupo 13"`).
+
+## Datos
+
+Dataset: **Breast Ultrasound Images Dataset (BUSI)**, Al-Dhabyani et al., *Data in Brief* 28 (2020) 104863.
+Kaggle: <https://www.kaggle.com/datasets/aryashah2k/breast-ultrasound-images-dataset>
+
+1. Descargar el zip desde Kaggle (botón **Download**; requiere cuenta) o por terminal:
+   ```bash
+   curl -L -o data/raw/busi.zip https://www.kaggle.com/api/v1/datasets/download/aryashah2k/breast-ultrasound-images-dataset
+   ```
+2. Descomprimir dentro de `data/raw/`:
+   ```bash
+   unzip data/raw/busi.zip -d data/raw/
+   ```
+   Tiene que quedar `data/raw/Dataset_BUSI_with_GT/{benign,malignant,normal}/`.
+   Si la carpeta tiene otro nombre, ajustar `DATA_DIR` en `config.yaml`.
+3. Correr `python scripts/check_env.py`: debería mostrar 437 benign, 210 malignant y 133 normal.
+
+## Uso
+
+Los notebooks importan el paquete desde `src/`:
+
+```python
+from busi.datos import listar_casos, cargar_caso
+
+casos = listar_casos()                 # DataFrame: id, clase, ruta, máscaras
+img, mascara = cargar_caso(casos.iloc[0])
+```
+
+## Plan de trabajo por módulos
+
+Cada parte es un módulo en `src/busi/` (las funciones) y un notebook (las pruebas,
+figuras y conclusiones). Los módulos traen la explicación del método y funciones con
+`TODO` para completar. Se avanza de a una función por vez, con un commit cada una.
+
+| Parte | Módulo | Necesita | Entrega |
+|---|---|---|---|
+| 0 | `datos.py` + `00_exploracion` | dataset | avances 20/10 |
+| 1 | `artefactos.py` | Parte 0 | avances 20/10 |
+| 2 | `ruido.py` | Parte 1 (parches sin marcas) | avances 20/10 |
+| 3 | `dominios.py` | Parte 0 (puede arrancar en paralelo con 1 y 2) | avances 20/10 |
+| 4 | `mapas.py` | Parte 3 (elegir el filtro) | avances 20/10 (primeros mapas) |
+| 5 | `segmentacion.py` | Parte 4 (elegir los mapas) | 27/10 |
+| 6 | `descriptores.py` | Parte 5 y máscaras manuales | 31/10 |
+
+Las Partes 1, 2 y 3 se pueden hacer en paralelo, una por integrante. Las Partes 4 y 6
+también pueden avanzar en paralelo con la 5, porque usan las máscaras manuales.
+
+## Flujo de trabajo en Git
+
+1. Antes de empezar: `git switch main && git pull`.
+2. Rama por tarea: `git switch -c parte2-ruido`.
+3. Commits chicos y frecuentes, con mensajes que digan qué se hizo:
+   `ruido: extraer parches homogéneos lejos de la lesión`,
+   `ruido: ajuste Rayleigh/Gamma y test KS`.
+4. `git push -u origin parte2-ruido` y abrir un Pull Request a `main`. Otra integrante
+   lo revisa y lo mergea.
+5. Cada integrante commitea con su propio usuario de GitHub: la cátedra audita la
+   distribución de aportes entre integrantes.

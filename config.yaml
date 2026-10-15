@@ -1,0 +1,8 @@
+# Carpeta que contiene benign/, malignant/ y normal/ (ver README, sección Datos)
+DATA_DIR: data/raw/Dataset_BUSI_with_GT
+
+# Figuras y tablas generadas
+OUTPUT_DIR: outputs
+
+# Semilla para que los resultados sean reproducibles
+SEED: 13

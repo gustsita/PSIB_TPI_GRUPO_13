@@ -1,0 +1,25 @@
+# Núcleo numérico y datos
+numpy
+scipy
+pandas
+
+# Imágenes
+opencv-python
+scikit-image
+Pillow
+
+# Clasificador y métricas
+scikit-learn
+
+# Gráficos
+matplotlib
+
+# Configuración (config.yaml)
+PyYAML
+
+# Notebooks
+jupyterlab
+ipykernel
+
+# Interfaz (opcional)
+streamlit
