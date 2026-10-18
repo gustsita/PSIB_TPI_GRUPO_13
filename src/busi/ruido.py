@@ -73,13 +73,33 @@ def razon_media_desvio(parche):
     return parche.mean() / parche.std()
 
 
-def ajustar_distribuciones(valores, candidatas=("rayleigh", "gamma", "nakagami")):
-    """Ajusta cada distribución de scipy.stats a `valores`.
+def ajustar_distribuciones(valores, candidatas=("rayleigh", "gamma", "nakagami"), loc_cero=True):
+    """Ajusta cada distribución de scipy.stats a `valores` por máxima verosimilitud.
 
-    Devuelve dict {nombre: {"params": ..., "loglik": ..., "ks": ...}}.
-    TODO: implementar con getattr(stats, nombre).fit(valores) y stats.kstest.
+    Con loc_cero=True se fija loc = 0, como en el modelo físico (la amplitud del eco
+    empieza en 0). Con loc_cero=False scipy también ajusta un corrimiento.
+
+    Devuelve dict {nombre: {"params", "loglik", "aic", "ks", "p_ks"}}:
+    - loglik: log-verosimilitud (más alta = mejor ajuste);
+    - aic: 2·k − 2·loglik, penaliza los parámetros libres (Rayleigh tiene uno menos);
+    - ks, p_ks: estadístico D y p-valor del test de Kolmogorov-Smirnov.
     """
-    raise NotImplementedError
+    valores = np.asarray(valores, dtype=float).ravel()
+    resultados = {}
+    for nombre in candidatas:
+        dist = getattr(stats, nombre)
+        params = dist.fit(valores, floc=0) if loc_cero else dist.fit(valores)
+        loglik = dist.logpdf(valores, *params).sum()
+        k = len(params) - (1 if loc_cero else 0)       # loc fijo no cuenta como parámetro libre
+        ks = stats.kstest(valores, nombre, args=params)
+        resultados[nombre] = {
+            "params": params,
+            "loglik": loglik,
+            "aic": 2 * k - 2 * loglik,
+            "ks": ks.statistic,
+            "p_ks": ks.pvalue,
+        }
+    return resultados
 
 
 def varianza_vs_media(img, ventana=7):
