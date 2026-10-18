@@ -18,7 +18,7 @@ post-procesamiento, así que no hay que esperar que cumplan exactamente la teor�
 
 import cv2
 import numpy as np
-from scipy import stats
+from scipy import ndimage, stats
 
 from .config import load_config
 
@@ -107,6 +107,13 @@ def varianza_vs_media(img, ventana=7):
 
     Graficar varianza contra media: si el ruido es multiplicativo la varianza crece
     con la media; después de aplicar log, debería quedar aproximadamente constante.
-    TODO: usar scipy.ndimage.uniform_filter sobre img y sobre img**2.
+    Usa var = E[g²] − E[g]², con los promedios locales calculados con un filtro
+    promediador de ventana×ventana (scipy.ndimage.uniform_filter).
+
+    Devuelve (media, varianza), dos arrays del mismo tamaño que img.
     """
-    raise NotImplementedError
+    img = img.astype(float)
+    media = ndimage.uniform_filter(img, size=ventana)
+    media_cuadrados = ndimage.uniform_filter(img ** 2, size=ventana)
+    varianza = np.clip(media_cuadrados - media ** 2, 0, None)   # evita negativos por redondeo
+    return media, varianza
