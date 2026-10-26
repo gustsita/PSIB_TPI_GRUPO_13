@@ -18,16 +18,54 @@ import numpy as np
 from skimage import measure, morphology
 
 
-def detectar_marcas(img, radio_tophat=7, umbral=None, area_max=400, dilatar=2):
+def tophat(img, radio=3):
+    """Top-hat blanco: img − apertura(img) con un disco de radio `radio`.
+
+    La apertura borra las estructuras claras más finas que el disco; al restarla
+    quedan solo esas estructuras. Las marcas miden 3 px de grosor, así que un disco
+    de radio 3 (diámetro 7) las borra por completo, incluso donde son más anchas
+    (centro de las cruces, números).
+    """
+    return morphology.white_tophat(img, morphology.disk(radio))
+
+
+def es_fibra(region, elongacion_min=3, largo_min=8, angulo_max=35):
+    """True si la componente parece una fibra del tejido y no una marca.
+
+    Las fibras son alargadas y aproximadamente horizontales (el tejido mamario se
+    dispone en capas paralelas a la piel). Las marcas son cruces, puntos y letras:
+    compactas, o alargadas pero verticales (el "1", la "I").
+
+    region: un elemento de skimage.measure.regionprops.
+    angulo_max: máxima inclinación respecto de la horizontal, en grados.
+    """
+    largo = region.axis_major_length
+    elongacion = largo / max(region.axis_minor_length, 1)
+    # orientation de skimage es el ángulo entre el eje de las filas y el eje mayor:
+    # vale ±90° para una componente horizontal y 0° para una vertical
+    inclinacion = 90 - abs(np.degrees(region.orientation))
+    return elongacion >= elongacion_min and largo >= largo_min and inclinacion <= angulo_max
+
+
+def detectar_marcas(img, radio_tophat=3, umbral=100, dilatar=1, descartar_fibras=True):
     """Máscara booleana con las marcas del ecógrafo.
 
-    TODO:
-    - tophat = morphology.white_tophat(img, morphology.disk(radio_tophat))
-    - umbral: si es None, elegir uno alto (por ejemplo percentil 99,5 del top-hat)
-    - etiquetar y descartar componentes con área > area_max (no son marcas)
-    - dilatar la máscara `dilatar` píxeles
+    1. Top-hat con disco de radio `radio_tophat` y umbral `umbral`: candidatos.
+    2. Etiquetado de componentes conexas y descarte de las que parecen fibras.
+    3. Dilatación de `dilatar` px para cubrir el borde suavizado de las marcas
+       (en los perfiles de intensidad se ve 1 px de transición a cada lado).
     """
-    raise NotImplementedError
+    candidatos = tophat(img, radio_tophat) >= umbral
+
+    marcas = candidatos
+    if descartar_fibras:
+        etiquetas = measure.label(candidatos, connectivity=2)
+        fibras = [r.label for r in measure.regionprops(etiquetas) if es_fibra(r)]
+        marcas = candidatos & ~np.isin(etiquetas, fibras)
+
+    if dilatar:
+        marcas = morphology.dilation(marcas, morphology.disk(dilatar))
+    return marcas
 
 
 def reconstruir(img, mascara_marcas, radio=3, metodo="telea"):
