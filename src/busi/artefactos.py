@@ -15,7 +15,7 @@ Pasos:
 
 import cv2
 import numpy as np
-from skimage import measure, morphology
+from skimage import measure, morphology, restoration
 
 
 def tophat(img, radio=3):
@@ -69,7 +69,19 @@ def detectar_marcas(img, radio_tophat=3, umbral=100, dilatar=1, descartar_fibras
 
 
 def reconstruir(img, mascara_marcas, radio=3, metodo="telea"):
-    """Rellena los píxeles de `mascara_marcas` a partir de su vecindad."""
+    """Rellena los píxeles de `mascara_marcas` a partir de su vecindad (inpainting).
+
+    metodo:
+    - "telea": avanza desde el borde del hueco hacia adentro; cada píxel nuevo es un
+      promedio ponderado de los píxeles conocidos a menos de `radio` px.
+    - "ns" (Navier-Stokes): prolonga hacia adentro del hueco las líneas de igual
+      nivel de gris (isofotas), para continuar los bordes que llegan al hueco.
+    - "biharmonico": rellena con la superficie más suave que coincide con el borde
+      del hueco (resuelve la ecuación biharmónica). `radio` no se usa.
+    """
+    if metodo == "biharmonico":
+        rec = restoration.inpaint_biharmonic(img, mascara_marcas)   # devuelve float en [0, 1]
+        return np.clip(rec * 255, 0, 255).round().astype(np.uint8)
     flag = cv2.INPAINT_TELEA if metodo == "telea" else cv2.INPAINT_NS
     return cv2.inpaint(img.astype(np.uint8), mascara_marcas.astype(np.uint8), radio, flag)
 
